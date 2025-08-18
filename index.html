@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Save the King</title>
+
+    <!-- Chrome-friendly favicon: PNG renders of the Cburnett white king at common sizes -->
+    <link rel="icon" type="image/png" sizes="16x16"
+        href="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Chess_klt45.svg/16px-Chess_klt45.svg.png">
+    <link rel="icon" type="image/png" sizes="32x32"
+        href="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Chess_klt45.svg/32px-Chess_klt45.svg.png">
+    <link rel="icon" type="image/png" sizes="64x64"
+        href="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Chess_klt45.svg/64px-Chess_klt45.svg.png">
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Chess_klt45.svg/180px-Chess_klt45.svg.png">
+    <meta name="theme-color" content="#0F1116" />
+
+    <style>
+        :root {
+            --light: #F0D9B5;
+            --dark: #B58863;
+            --uiBg: #0F1116;
+            --text: #E7E9EE;
+            --accent: #3B82F6
+        }
+
+        #app[data-theme="Classic"] {
+            --light: #F0D9B5;
+            --dark: #B58863;
+            --uiBg: #0F1116;
+            --text: #E7E9EE;
+            --accent: #3B82F6
+        }
+
+        #app[data-theme="Slate"] {
+            --light: #E2E8F0;
+            --dark: #475569;
+            --uiBg: #0B0E13;
+            --text: #E5E7EB;
+            --accent: #94A3B8
+        }
+
+        #app[data-theme="Sand"] {
+            --light: #F5E6C8;
+            --dark: #C2A07D;
+            --uiBg: #111217;
+            --text: #EEE5D3;
+            --accent: #A16207
+        }
+
+        #app[data-theme="Forest"] {
+            --light: #E8F3EA;
+            --dark: #2F5D3A;
+            --uiBg: #0C1110;
+            --text: #E6F2EC;
+            --accent: #16A34A
+        }
+
+        #app[data-theme="Indigo"] {
+            --light: #E8EAF6;
+            --dark: #3949AB;
+            --uiBg: #0D0F1A;
+            --text: #EAEAF3;
+            --accent: #6366F1
+        }
+
+        html,
+        body {
+            height: 100%
+        }
+
+        body {
+            margin: 0;
+            background: var(--uiBg);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif
+        }
+
+        button,
+        select {
+            font: inherit
+        }
+
+        .wrap {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 12px
+        }
+
+        .hud {
+            width: min(96vmin, 1200px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px
+        }
+
+        .pill {
+            background: #00000033;
+            border: 1px solid #ffffff18;
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 999px;
+            display: flex;
+            gap: 12px;
+            align-items: center
+        }
+
+        .pill strong {
+            color: var(--accent)
+        }
+
+        .hud .right {
+            display: flex;
+            gap: 8px;
+            align-items: center
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer
+        }
+
+        .btn.secondary {
+            background: #00000033;
+            color: var(--text);
+            border: 1px solid #ffffff2a
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed
+        }
+
+        .board-outer {
+            position: relative;
+            width: min(96vmin, 900px);
+            aspect-ratio: 1
+        }
+
+        .board {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px #0008
+        }
+
+        .sq {
+            position: relative
+        }
+
+        .light {
+            background: var(--light)
+        }
+
+        .dark {
+            background: var(--dark)
+        }
+
+        .highlight {
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 0 3px #00ff8833;
+            outline: 3px solid #00ff8844;
+            border-radius: 2px;
+            pointer-events: none
+        }
+
+        .highlight.safe {
+            box-shadow: inset 0 0 0 3px #22c55e55;
+            outline-color: #22c55e66
+        }
+
+        .telegraph {
+            position: absolute;
+            inset: 0;
+            background: #ef44441f;
+            box-shadow: inset 0 0 0 3px #ef44446b;
+            border-radius: 2px;
+            animation: blink 100ms linear 2
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0.4
+            }
+        }
+
+        .pieces {
+            position: absolute;
+            inset: 0
+        }
+
+        .piece {
+            position: absolute;
+            width: 12.5%;
+            height: 12.5%;
+            transition: transform 160ms ease;
+            will-change: transform;
+            pointer-events: none;
+            top: 0;
+            left: 0
+        }
+
+        .piece img {
+            width: 100%;
+            height: 100%;
+            display: block
+        }
+
+        .flash-fail {
+            animation: failflash 400ms ease
+        }
+
+        @keyframes failflash {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8) inset
+            }
+
+            100% {
+                box-shadow: 0 0 0 9999px rgba(239, 68, 68, 0)
+            }
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50
+        }
+
+        .overlay.visible {
+            display: flex
+        }
+
+        .panel {
+            background: var(--uiBg);
+            color: var(--text);
+            padding: 22px;
+            border: 1px solid #ffffff1a;
+            border-radius: 14px;
+            width: min(92vw, 560px);
+            box-shadow: 0 10px 30px #000a
+        }
+
+        .panel h1 {
+            margin: 0 0 8px;
+            font-size: 28px
+        }
+
+        .panel h2 {
+            margin: 12px 0 0;
+            font-size: 20px
+        }
+
+        .panel p {
+            opacity: 0.9
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        .row>* {
+            flex: 1
+        }
+
+        .small {
+            font-size: 12px;
+            opacity: 0.8
+        }
+
+        .select {
+            background: #00000033;
+            border: 1px solid #ffffff28;
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 10px
+        }
+
+        .overlay.visible~* {
+            pointer-events: none
+        }
+
+        @media (max-width:480px) {
+            .hud {
+                flex-direction: column;
+                align-items: stretch
+            }
+
+            .btn {
+                padding: 10px 12px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" data-theme="Classic" class="wrap">
+        <div class="hud">
+            <div class="pill" id="hudLeft">
+                <div>Mode: <strong id="modeText">Rapid</strong></div>
+                <div>Level: <strong id="levelText">1</strong></div>
+                <div>Timer: <strong id="timerText">30.0</strong></div>
+                <div>Enemies: <strong id="enemiesText">0</strong></div>
+            </div>
+            <div class="right">
+                <select id="themeSelect" class="select" title="Theme"></select>
+                <button id="pauseBtn" class="btn secondary" title="Pause (Space/P)">Pause</button>
+                <button id="restartBtn" class="btn secondary" title="Restart (Enter/R)">Restart</button>
+            </div>
+        </div>
+
+        <div class="board-outer" id="boardOuter">
+            <div id="board" class="board"></div>
+            <div id="pieces" class="pieces"></div>
+        </div>
+
+        <div id="ovStart" class="overlay visible">
+            <div class="panel">
+                <h1>Save the King</h1>
+                <p><strong>Goal:</strong> capture <em>all</em> enemies within <strong>30 seconds</strong>. If the timer
+                    hits 0 and any enemy remains, you lose; clear them earlier to win instantly.</p>
+                <p><strong>Movement:</strong> the king moves one square in 8 directions to safe squares only and can
+                    capture by moving onto an enemy.</p>
+                <p><strong>Modes:</strong> Rapid is turn-based (you move, then enemies). Blitz advances enemies every
+                    400 ms with a brief telegraph.</p>
+                <div class="row" style="margin-top:10px">
+                    <label>Mode
+                        <select id="modeSelect" class="select">
+                            <option>Rapid</option>
+                            <option>Blitz</option>
+                        </select>
+                    </label>
+                    <label>Theme
+                        <select id="themeSelectStart" class="select"></select>
+                    </label>
+                </div>
+                <div class="row" style="margin-top:10px">
+                    <button id="startBtn" class="btn">Start</button>
+                </div>
+                <p class="small">Controls: WASD/Arrows (hold two for diagonals). Space/P pause. Enter/R restart. Touch:
+                    tap an adjacent highlight.</p>
+                <h2>Best</h2>
+                <p class="small">Best Level: <span id="bestLevel">1</span> • Best Captures: <span
+                        id="bestScore">0</span></p>
+            </div>
+        </div>
+
+        <div id="ovPause" class="overlay">
+            <div class="panel">
+                <h1>Paused</h1>
+                <div class="row" style="margin-top:10px">
+                    <button id="resumeBtn" class="btn">Resume</button>
+                    <button id="restartBtn2" class="btn secondary">Restart</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="ovClear" class="overlay">
+            <div class="panel">
+                <h1>Level Cleared</h1>
+                <p id="clearStats" class="small"></p>
+                <div class="row" style="margin-top:10px">
+                    <button id="nextBtn" class="btn">Next Level</button>
+                    <button id="restartBtn3" class="btn secondary">Restart Run</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="ovOver" class="overlay">
+            <div class="panel">
+                <h1 id="overTitle">Game Over</h1>
+                <p id="overStats" class="small"></p>
+                <div class="row" style="margin-top:10px">
+                    <button id="restartBtn4" class="btn">Restart</button>
+                </div>
+                <h2>Best</h2>
+                <p class="small">Best Level: <span id="bestLevel2">1</span> • Best Captures: <span
+                        id="bestScore2">0</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            "use strict";
+            const STATES = { START: 0, PLAYING: 1, LEVEL_CLEARED: 2, GAME_OVER: 3, PAUSED: 4 };
+            const MODES = { RAPID: "Rapid", BLITZ: "Blitz" };
+            const THEMES = [
+                { name: "Classic", light: "#F0D9B5", dark: "#B58863", uiBg: "#0F1116", text: "#E7E9EE", accent: "#3B82F6" },
+                { name: "Slate", light: "#E2E8F0", dark: "#475569", uiBg: "#0B0E13", text: "#E5E7EB", accent: "#94A3B8" },
+                { name: "Sand", light: "#F5E6C8", dark: "#C2A07D", uiBg: "#111217", text: "#EEE5D3", accent: "#A16207" },
+                { name: "Forest", light: "#E8F3EA", dark: "#2F5D3A", uiBg: "#0C1110", text: "#E6F2EC", accent: "#16A34A" },
+                { name: "Indigo", light: "#E8EAF6", dark: "#3949AB", uiBg: "#0D0F1A", text: "#EAEAF3", accent: "#6366F1" }
+            ];
+            const BOARD = 8;
+            const LEVEL_TIME = 30.0;
+
+            // Piece image sources (Cburnett set)
+            const PIECE_SRC = {
+                WK: "https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg",
+                WQ: "https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg",
+                WR: "https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg",
+                WB: "https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg",
+                WN: "https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg",
+                WP: "https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg",
+                BK: "https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg",
+                BQ: "https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg",
+                BR: "https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg",
+                BB: "https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg",
+                BN: "https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg",
+                BP: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg"
+            };
+
+            // DOM
+            const app = document.getElementById('app');
+            const board = document.getElementById('board');
+            const piecesLayer = document.getElementById('pieces');
+            const hudMode = document.getElementById('modeText');
+            const hudLevel = document.getElementById('levelText');
+            const hudTimer = document.getElementById('timerText');
+            const hudEnemies = document.getElementById('enemiesText');
+            const themeSelect = document.getElementById('themeSelect');
+            const themeSelectStart = document.getElementById('themeSelectStart');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const restartBtn = document.getElementById('restartBtn');
+            const ovStart = document.getElementById('ovStart');
+            const ovPause = document.getElementById('ovPause');
+            const ovClear = document.getElementById('ovClear');
+            const ovOver = document.getElementById('ovOver');
+            const startBtn = document.getElementById('startBtn');
+            const modeSelect = document.getElementById('modeSelect');
+            const nextBtn = document.getElementById('nextBtn');
+            const resumeBtn = document.getElementById('resumeBtn');
+            const restartBtn2 = document.getElementById('restartBtn2');
+            const restartBtn3 = document.getElementById('restartBtn3');
+            const restartBtn4 = document.getElementById('restartBtn4');
+            const clearStats = document.getElementById('clearStats');
+            const overTitle = document.getElementById('overTitle');
+            const overStats = document.getElementById('overStats');
+            const bestLevelEl = document.getElementById('bestLevel');
+            const bestScoreEl = document.getElementById('bestScore');
+            const bestLevelEl2 = document.getElementById('bestLevel2');
+            const bestScoreEl2 = document.getElementById('bestScore2');
+
+            // State
+            let state = STATES.START;
+            let mode = localStorage.getItem('stk_mode') || MODES.RAPID;
+            let theme = localStorage.getItem('stk_theme') || 'Classic';
+            let level = 1;
+            let timer = LEVEL_TIME;
+            let rafId = null;
+            let bestLevel = +localStorage.getItem('stk_bestLevel') || 1;
+            let bestScore = +localStorage.getItem('stk_bestScore') || 0;
+            let king = { x: 4, y: 4, el: null };
+            const enemies = [];
+            let idSeq = 1;
+            let capturesThisRun = 0;
+            let capturedThisLevel = 0;
+            const occ = new Array(BOARD * BOARD).fill(0);
+
+            // Blitz loop (continuous interval)
+            let blitzInterval = null;
+            let blitzTelegraphTO = null;
+
+            // Audio
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            function beep(freq = 440, dur = 0.07, type = 'sine', gain = 0.06) {
+                try { const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type = type; o.frequency.value = freq; g.gain.value = gain; o.connect(g).connect(audioCtx.destination); const t = audioCtx.currentTime; o.start(t); o.stop(t + dur); } catch (e) { }
+            }
+            const sfxMove = () => beep(740, 0.05, 'triangle', 0.05);
+            const sfxCap = () => { beep(340, 0.06, 'square', 0.06); setTimeout(() => beep(520, 0.06, 'square', 0.05), 55) }
+            const sfxFail = () => { beep(220, 0.18, 'sawtooth', 0.09); setTimeout(() => beep(160, 0.22, 'sawtooth', 0.08), 120) }
+
+            // UI init
+            function populateThemeSelect(sel) { sel.innerHTML = THEMES.map(t => `<option value="${t.name}">${t.name}</option>`).join(''); sel.value = theme; }
+            populateThemeSelect(themeSelect); populateThemeSelect(themeSelectStart); modeSelect.value = mode; app.setAttribute('data-theme', theme);
+            updateBestUI(); updateHud();
+
+            // Board
+            const squares = [];
+            for (let r = 0; r < BOARD; r++) {
+                for (let c = 0; c < BOARD; c++) {
+                    const sq = document.createElement('div'); sq.className = 'sq ' + ((r + c) % 2 === 0 ? 'light' : 'dark'); sq.dataset.x = c; sq.dataset.y = r; board.appendChild(sq); squares.push(sq);
+                }
+            }
+            king.el = createPieceEl('WK'); piecesLayer.appendChild(king.el); setPiecePos(king.el, king.x, king.y);
+            const hiEls = squares.map(() => { const d = document.createElement('div'); d.className = ''; return d }); hiEls.forEach((el, i) => squares[i].appendChild(el));
+            const teleEls = squares.map(() => { const d = document.createElement('div'); return d }); teleEls.forEach((el, i) => squares[i].appendChild(el));
+
+            // Events
+            board.addEventListener('click', onBoardClick);
+            pauseBtn.addEventListener('click', togglePause);
+            restartBtn.addEventListener('click', fullRestartFromStart);
+            startBtn.addEventListener('click', () => startLevel());
+            nextBtn.addEventListener('click', () => { level++; if (level > 10) { showGauntletWin(); } else { startLevel(); } });
+            resumeBtn.addEventListener('click', togglePause);
+            restartBtn2.addEventListener('click', fullRestartFromStart);
+            restartBtn3.addEventListener('click', fullRestartFromStart);
+            restartBtn4.addEventListener('click', fullRestartFromStart);
+            themeSelect.addEventListener('change', e => applyTheme(e.target.value, true));
+            themeSelectStart.addEventListener('change', e => applyTheme(e.target.value, true));
+            modeSelect.addEventListener('change', e => { mode = e.target.value; localStorage.setItem('stk_mode', mode); hudMode.textContent = mode; });
+
+            // Keyboard: diagonal-friendly input
+            const pressed = new Set();
+            const MOVE = {
+                up: new Set(['ArrowUp', 'KeyW']),
+                down: new Set(['ArrowDown', 'KeyS']),
+                left: new Set(['ArrowLeft', 'KeyA']),
+                right: new Set(['ArrowRight', 'KeyD'])
+            };
+            function isMoveKey(code) { return MOVE.up.has(code) || MOVE.down.has(code) || MOVE.left.has(code) || MOVE.right.has(code); }
+            function getVector() {
+                const dx = (hasAny(MOVE.right) ? 1 : 0) + (hasAny(MOVE.left) ? -1 : 0);
+                const dy = (hasAny(MOVE.down) ? 1 : 0) + (hasAny(MOVE.up) ? -1 : 0);
+                return { dx: Math.max(-1, Math.min(1, dx)), dy: Math.max(-1, Math.min(1, dy)) };
+            }
+            function hasAny(set) { for (const k of set) { if (pressed.has(k)) return true; } return false; }
+            let moveLatched = false, pendingInputTO = null;
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+
+            function onKeyDown(e) {
+                const code = e.code;
+                if (isMoveKey(code)) e.preventDefault();
+
+                if (state === STATES.START) {
+                    if (code === 'KeyM') { mode = (mode === MODES.RAPID ? MODES.BLITZ : MODES.RAPID); modeSelect.value = mode; localStorage.setItem('stk_mode', mode); hudMode.textContent = mode; }
+                    if (code === 'Enter' || code === 'KeyR') { startLevel(); }
+                    return;
+                }
+                if (code === 'Space' || code === 'KeyP') { togglePause(); return; }
+                if (code === 'Enter' || code === 'KeyR') { fullRestartFromStart(); return; }
+                if (state !== STATES.PLAYING) return;
+
+                if (isMoveKey(code)) {
+                    if (e.repeat) return;
+                    pressed.add(code);
+                    scheduleCombinedMove();
+                    return;
+                }
+            }
+            function onKeyUp(e) { if (!isMoveKey(e.code)) return; pressed.delete(e.code); if (pressed.size === 0) { moveLatched = false; } }
+            function scheduleCombinedMove() {
+                if (moveLatched) return;
+                if (pendingInputTO) clearTimeout(pendingInputTO);
+                pendingInputTO = setTimeout(() => {
+                    pendingInputTO = null;
+                    const { dx, dy } = getVector();
+                    if (dx === 0 && dy === 0) return;
+                    tryMoveKing(dx, dy);
+                    moveLatched = true; // require release before next move
+                }, 60);
+            }
+
+            // Helpers
+            function idx(x, y) { return y * BOARD + x }
+            function inb(x, y) { return x >= 0 && x < BOARD && y >= 0 && y < BOARD }
+            function clearBoardEffects() { board.classList.remove('flash-fail'); hiEls.forEach(el => el.className = ''); teleEls.forEach(el => el.className = '') }
+            function setPiecePos(el, x, y) { el.style.transform = `translate(${x * 100}%, ${y * 100}%)`; }
+            function fallbackDataURI(kind) {
+                const side = kind[0] === 'W' ? 'W' : 'B'; const letter = kind[1];
+                const tile = side === 'W' ? { bg: '#f1f5f9', stroke: '#cbd5e1', fg: '#111827' } : { bg: '#0b0f16', stroke: '#111827', fg: '#e5e7eb' };
+                const svg = `<?xml version='1.0' encoding='UTF-8'?>\n<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>\n  <rect x='6' y='6' width='52' height='52' rx='8' fill='${tile.bg}' stroke='${tile.stroke}' stroke-width='2'/>\n  <g fill='${tile.fg}'>\n    <text x='32' y='42' text-anchor='middle' font-family='Inter,Arial' font-size='36' font-weight='700'>${letter}</text>\n  </g>\n</svg>`;
+                return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+            }
+            function createPieceEl(kind) {
+                const d = document.createElement('div'); d.className = 'piece';
+                const img = document.createElement('img'); img.alt = kind; img.decoding = 'async';
+                img.src = PIECE_SRC[kind] || fallbackDataURI(kind);
+                img.onerror = () => { img.onerror = null; img.src = fallbackDataURI(kind); };
+                d.appendChild(img); return d;
+            }
+            function applyTheme(name, persist) { theme = name; app.setAttribute('data-theme', name); const t = THEMES.find(t => t.name === name) || THEMES[0]; const root = document.documentElement.style; root.setProperty('--light', t.light); root.setProperty('--dark', t.dark); root.setProperty('--uiBg', t.uiBg); root.setProperty('--text', t.text); root.setProperty('--accent', t.accent); themeSelect.value = name; themeSelectStart.value = name; if (persist) { localStorage.setItem('stk_theme', name); } }
+            applyTheme(theme, false);
+            function updateHud() { hudMode.textContent = mode; hudLevel.textContent = String(level); hudTimer.textContent = timer.toFixed(1); hudEnemies.textContent = String(enemies.length); }
+            function updateBestUI() { bestLevelEl.textContent = String(bestLevel); bestScoreEl.textContent = String(bestScore); bestLevelEl2.textContent = String(bestLevel); bestScoreEl2.textContent = String(bestScore); }
+            function showOverlay(ov) { [ovStart, ovPause, ovClear, ovOver].forEach(o => o.classList.remove('visible')); if (ov) ov.classList.add('visible'); }
+            function hideAllOverlays() { showOverlay(null); }
+            function stopAllLoops() { if (rafId) { cancelAnimationFrame(rafId); rafId = null } if (blitzInterval) { clearInterval(blitzInterval); blitzInterval = null } if (blitzTelegraphTO) { clearTimeout(blitzTelegraphTO); blitzTelegraphTO = null } }
+            function rebuildOcc() { occ.fill(0); occ[idx(king.x, king.y)] = 1; for (const e of enemies) { occ[idx(e.x, e.y)] = 1; } }
+
+            // ========= LEGALITY (single source of truth) =========
+            function canKingMoveTo(nx, ny) {
+                if (!inb(nx, ny)) return false;
+                const oldIdx = idx(king.x, king.y); const targetIdx = idx(nx, ny);
+                const occupied = occ[targetIdx] === 1;
+                const savedOld = occ[oldIdx]; const savedNew = occ[targetIdx];
+                // Simulate the board after the move so x-ray lines are evaluated correctly
+                occ[oldIdx] = 0; occ[targetIdx] = 1;
+                let ok = false;
+                if (occupied) {
+                    const enemyThere = enemies.find(en => en.x === nx && en.y === ny);
+                    if (enemyThere) {
+                        let attacked = false;
+                        for (const e of enemies) { if (e === enemyThere) continue; if (enemyAttacks(e, nx, ny)) { attacked = true; break; } }
+                        ok = !attacked;
+                    }
+                } else {
+                    ok = !isSquareAttacked(nx, ny);
+                }
+                occ[oldIdx] = savedOld; occ[targetIdx] = savedNew;
+                return ok;
+            }
+
+            // Flow
+            function fullRestartFromStart() { stopAllLoops(); state = STATES.START; level = 1; timer = LEVEL_TIME; capturesThisRun = 0; capturedThisLevel = 0; clearPieces(); king.x = 4; king.y = 4; setPiecePos(king.el, king.x, king.y); updateHud(); updateBestUI(); showOverlay(ovStart); }
+            function startLevel() {
+                stopAllLoops(); hideAllOverlays(); state = STATES.PLAYING; timer = LEVEL_TIME; capturedThisLevel = 0; clearBoardEffects(); clearPieces(); king.x = 4; king.y = 4; setPiecePos(king.el, king.x, king.y);
+                const count = Math.min(level, 10); const pool = []; if (level === 1) { pool.push('N') } else if (level === 2) { pool.push('N', 'N') } else { for (let i = 0; i < count; i++) { const r = Math.random(); if (r < 0.35) pool.push('N'); else if (r < 0.60) pool.push('B'); else if (r < 0.85) pool.push('R'); else pool.push('Q'); } } while (pool.length < count) pool.push('N'); safeSpawnAll(pool);
+                if (mode === MODES.BLITZ) { const loop = () => { rafId = requestAnimationFrame(loop) }; loop(); scheduleBlitz(); }
+                rebuildOcc(); updateKingHighlights(); updateHud();
+                if (loseIfNoMoves()) return;
+            }
+
+            // Blitz loop
+            function scheduleBlitz() { blitzInterval = setInterval(() => { if (state !== STATES.PLAYING || mode !== MODES.BLITZ) return; telegraphMoves(); blitzTelegraphTO = setTimeout(() => { clearTelegraph(); enemiesTurnBlitz(); }, 100); }, 400); }
+            function enemiesTurnBlitz() { if (state !== STATES.PLAYING) return; if (enemiesTurn()) return; if (loseIfNoMoves()) return; tickTimer(0.4); updateHud(); if (enemies.length === 0) { levelCleared(); } }
+
+            function clearPieces() { enemies.length = 0;[...piecesLayer.children].forEach(ch => { if (ch !== king.el) piecesLayer.removeChild(ch); }); }
+            function gameOver(reason) { stopAllLoops(); state = STATES.GAME_OVER; board.classList.add('flash-fail'); sfxFail(); const msg = `Level ${level} • Captures this run ${capturesThisRun}` + (reason ? ` • ${reason}` : ''); overStats.textContent = msg; overTitle.textContent = 'Game Over'; updateBestUI(); showOverlay(ovOver); }
+            function levelCleared() { stopAllLoops(); state = STATES.LEVEL_CLEARED; const msg = `Level ${level} cleared • Time left ${timer.toFixed(1)}s • Captured ${capturedThisLevel}`; clearStats.textContent = msg; showOverlay(ovClear); }
+            function showGauntletWin() { stopAllLoops(); state = STATES.GAME_OVER; overTitle.textContent = 'You beat the gauntlet!'; overStats.textContent = `Final stats • Captures this run ${capturesThisRun}`; updateBestUI(); showOverlay(ovOver); }
+            function togglePause() { if (state === STATES.PLAYING) { state = STATES.PAUSED; stopAllLoops(); showOverlay(ovPause); } else if (state === STATES.PAUSED) { state = STATES.PLAYING; hideAllOverlays(); if (mode === MODES.BLITZ) { const loop = () => { rafId = requestAnimationFrame(loop) }; loop(); scheduleBlitz(); } } }
+
+            // Spawning & safety
+            function safeSpawnAll(pool) {
+                occ.fill(0); occ[idx(king.x, king.y)] = 1;
+                const edgeSquares = [];
+                for (let y = 0; y < BOARD; y++) { edgeSquares.push({ x: 0, y }); edgeSquares.push({ x: BOARD - 1, y }); }
+                for (let x = 1; x < BOARD - 1; x++) { edgeSquares.push({ x, y: 0 }); edgeSquares.push({ x, y: BOARD - 1 }); }
+                for (const t of pool) {
+                    let tries = 0, placed = false;
+                    while (tries++ < 200 && !placed) {
+                        const s = edgeSquares[Math.floor(Math.random() * edgeSquares.length)];
+                        if (occ[idx(s.x, s.y)]) continue;
+                        if (Math.max(Math.abs(s.x - king.x), Math.abs(s.y - king.y)) <= 1) continue;
+                        const e = { id: idSeq++, type: t, x: s.x, y: s.y, el: createPieceEl(mapEnemyToGlyph(t)) };
+                        enemies.push(e); occ[idx(e.x, e.y)] = 1;
+                        const safe = (level <= 5) ? hasAtLeastOneSafeKingMove() : true;
+                        if (safe) { piecesLayer.appendChild(e.el); setPiecePos(e.el, e.x, e.y); placed = true; }
+                        else { enemies.pop(); occ[idx(e.x, e.y)] = 0; }
+                    }
+                    if (!placed) {
+                        for (const s of edgeSquares) {
+                            if (occ[idx(s.x, s.y)]) continue;
+                            if (Math.max(Math.abs(s.x - king.x), Math.abs(s.y - king.y)) <= 1) continue;
+                            const e = { id: idSeq++, type: t, x: s.x, y: s.y, el: createPieceEl(mapEnemyToGlyph(t)) };
+                            enemies.push(e); occ[idx(e.x, e.y)] = 1; piecesLayer.appendChild(e.el); setPiecePos(e.el, e.x, e.y); placed = true; break;
+                        }
+                    }
+                }
+            }
+            function mapEnemyToGlyph(t) { if (t === 'N') return 'BN'; if (t === 'B') return 'BB'; if (t === 'R') return 'BR'; if (t === 'Q') return 'BQ'; return 'BN'; }
+            function isSquareAttacked(x, y) { for (const e of enemies) { if (enemyAttacks(e, x, y)) return true; } return false; }
+            function hasAtLeastOneSafeKingMove() { for (const [dx, dy] of KDIRS) { const nx = king.x + dx, ny = king.y + dy; if (!inb(nx, ny)) continue; if (canKingMoveTo(nx, ny)) return true; } return false; }
+            function countLegalKingMoves() { let cnt = 0; for (const [dx, dy] of KDIRS) { const nx = king.x + dx, ny = king.y + dy; if (canKingMoveTo(nx, ny)) cnt++; } return cnt; }
+            function loseIfNoMoves() { const legal = countLegalKingMoves(); if (legal === 0) { gameOver('No legal moves'); return true; } return false; }
+            const KDIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]; const NDIRS = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+            function enemyAttacks(e, x, y) { if (e.type === 'N') { for (const [kx, ky] of NDIRS) { if (e.x + kx === x && e.y + ky === y) return true; } return false; } const ddx = x - e.x, ddy = y - e.y; if (e.type === 'B') { if (Math.abs(ddx) !== Math.abs(ddy)) return false; return clearLine(e.x, e.y, Math.sign(ddx), Math.sign(ddy), x, y); } if (e.type === 'R') { if (ddx !== 0 && ddy !== 0) return false; return clearLine(e.x, e.y, Math.sign(ddx), Math.sign(ddy), x, y); } if (e.type === 'Q') { if (ddx === 0 || ddy === 0 || Math.abs(ddx) === Math.abs(ddy)) return clearLine(e.x, e.y, Math.sign(ddx), Math.sign(ddy), x, y); return false; } return false; }
+            function clearLine(sx, sy, stepx, stepy, tx, ty) { let x = sx + stepx, y = sy + stepy; while (x !== tx || y !== ty) { if (occ[idx(x, y)]) return false; x += stepx; y += stepy; } return true; }
+
+            // Touch
+            function onBoardClick(ev) { if (state !== STATES.PLAYING) return; const t = ev.target.closest('.sq'); if (!t) return; const x = +t.dataset.x, y = +t.dataset.y; if (Math.max(Math.abs(x - king.x), Math.abs(y - king.y)) !== 1) return; if (!canKingMoveTo(x, y)) return; tryMoveKing(Math.sign(x - king.x), Math.sign(y - king.y)); }
+
+            // Moves
+            function tryMoveKing(dx, dy) {
+                const nx = king.x + dx, ny = king.y + dy; if (!inb(nx, ny)) return; const oldIdx = idx(king.x, king.y); const targetIdx = idx(nx, ny); const occupied = occ[targetIdx] === 1; if (occupied) { const enemy = enemies.find(en => en.x === nx && en.y === ny); if (!enemy) return; const savedOld = occ[oldIdx]; const savedNew = occ[targetIdx]; occ[oldIdx] = 0; occ[targetIdx] = 1; let attacked = false; for (const e of enemies) { if (e === enemy) continue; if (enemyAttacks(e, nx, ny)) { attacked = true; break; } } occ[oldIdx] = savedOld; occ[targetIdx] = savedNew; if (attacked) return; removeEnemy(enemy); occ[oldIdx] = 0; king.x = nx; king.y = ny; occ[targetIdx] = 1; setPiecePos(king.el, king.x, king.y); sfxCap(); capturesThisRun++; capturedThisLevel++; } else { const savedOld = occ[oldIdx]; const savedNew = occ[targetIdx]; occ[oldIdx] = 0; occ[targetIdx] = 1; const attacked = isSquareAttacked(nx, ny); occ[oldIdx] = savedOld; occ[targetIdx] = savedNew; if (attacked) return; occ[oldIdx] = 0; king.x = nx; king.y = ny; occ[targetIdx] = 1; setPiecePos(king.el, king.x, king.y); sfxMove(); }
+                updateHud(); updateKingHighlights(); if (mode === MODES.RAPID) { endPlayerTurn(); } if (enemies.length === 0) { levelCleared(); return; }
+            }
+            function endPlayerTurn() { if (state !== STATES.PLAYING) return; if (enemiesTurn()) return; if (loseIfNoMoves()) return; tickTimer(1.0); updateKingHighlights(); updateHud(); if (timer <= 0 && enemies.length > 0) { gameOver('Out of time'); return; } if (enemies.length === 0) { levelCleared(); } }
+
+            // Enemy turns
+            function telegraphMoves() { clearTelegraph(); rebuildOcc(); const planned = new Map(); for (const e of enemies) { const tgt = chooseEnemyStep(e); const key = tgt.x + "," + tgt.y; if (planned.has(key)) { e._planned = { x: e.x, y: e.y }; } else { e._planned = tgt; planned.set(key, true); } } for (const e of enemies) { const p = e._planned; if (p && (p.x !== e.x || p.y !== e.y)) { teleEls[idx(p.x, p.y)].className = 'telegraph'; } } }
+            function clearTelegraph() { teleEls.forEach(el => el.className = ''); }
+            function enemiesTurn() { rebuildOcc(); const nextPositions = new Map(); for (const e of enemies) { const tgt = chooseEnemyStep(e); const key = tgt.x + "," + tgt.y; if (nextPositions.has(key)) { e._nx = e.x; e._ny = e.y; } else { nextPositions.set(key, true); e._nx = tgt.x; e._ny = tgt.y; } } for (const e of enemies) { if (e._nx === king.x && e._ny === king.y) { gameOver('Captured'); return true; } } for (const e of enemies) { occ[idx(e.x, e.y)] = 0; e.x = e._nx; e.y = e._ny; occ[idx(e.x, e.y)] = 1; setPiecePos(e.el, e.x, e.y); } return false; }
+            function chooseEnemyStep(e) {
+                if (e.type === 'N') { let best = { x: e.x, y: e.y, d2: 1e9 }; for (const [dx, dy] of NDIRS) { const nx = e.x + dx, ny = e.y + dy; if (!inb(nx, ny)) continue; if (nx === king.x && ny === king.y) return { x: nx, y: ny }; if (occ[idx(nx, ny)]) continue; const d2 = (nx - king.x) ** 2 + (ny - king.y) ** 2; if (d2 < best.d2) best = { x: nx, y: ny, d2 }; } return { x: best.x, y: best.y }; }
+                const dx = Math.sign(king.x - e.x), dy = Math.sign(king.y - e.y); const opts = []; if (e.type === 'B' || e.type === 'Q') { if (dx !== 0 && dy !== 0) { opts.push([dx, dy]); } else { if (dx !== 0 && dy === 0) { opts.push([dx, 1], [dx, -1]); } if (dy !== 0 && dx === 0) { opts.push([1, dy], [-1, dy]); } } } if (e.type === 'R' || e.type === 'Q') { if (dx === 0 && dy !== 0) opts.push([0, dy]); if (dy === 0 && dx !== 0) opts.push([dx, 0]); if (e.type === 'R' && dx !== 0 && dy !== 0) { if (Math.abs(king.x - e.x) > Math.abs(king.y - e.y)) opts.push([dx, 0]); else opts.push([0, dy]); } } if (opts.length === 0) { if (e.type === 'B') opts.push([1, 1], [1, -1], [-1, 1], [-1, -1]); if (e.type === 'R') opts.push([1, 0], [-1, 0], [0, 1], [0, -1]); if (e.type === 'Q') opts.push([1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]); }
+                for (const [sx, sy] of opts) { const nx = e.x + sx, ny = e.y + sy; if (!inb(nx, ny)) continue; if (nx === king.x && ny === king.y) return { x: nx, y: ny }; if (occ[idx(nx, ny)]) continue; return { x: nx, y: ny }; } return { x: e.x, y: e.y };
+            }
+            function removeEnemy(enemy) { const i = enemies.indexOf(enemy); if (i >= 0) { enemies.splice(i, 1); } occ[idx(enemy.x, enemy.y)] = 0; if (enemy.el && enemy.el.parentNode) enemy.el.parentNode.removeChild(enemy.el); }
+
+            // Timer and highlights
+            function tickTimer(dt) { timer -= dt; if (timer <= 0) { timer = 0; if (enemies.length > 0) { gameOver('Out of time'); } else { levelCleared(); } } }
+            function updateKingHighlights() { hiEls.forEach(el => el.className = ''); if (state !== STATES.PLAYING) return; for (const [dx, dy] of KDIRS) { const nx = king.x + dx, ny = king.y + dy; if (!inb(nx, ny)) continue; if (canKingMoveTo(nx, ny)) { hiEls[idx(nx, ny)].className = 'highlight safe'; } } }
+
+            // HUD tick for Blitz
+            setInterval(() => { if (state === STATES.PLAYING && mode === MODES.BLITZ) { updateHud(); } }, 120);
+
+            // Pause loops if overlays show
+            const obs = new MutationObserver(() => { if (ovStart.classList.contains('visible') || ovPause.classList.contains('visible') || ovClear.classList.contains('visible') || ovOver.classList.contains('visible')) { stopAllLoops(); } }); obs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+            // Start
+            function enterStart() { state = STATES.START; showOverlay(ovStart); updateHud(); updateKingHighlights(); }
+            enterStart();
+
+            // Sanity tests (console)
+            ; (function tests() { try { const dummy = document.createElement('div'); setPiecePos(dummy, 2, 3); console.assert(/200%/.test(dummy.style.transform) && /300%/.test(dummy.style.transform), 'grid translate'); console.assert(Object.keys(PIECE_SRC).length === 12, 'piece src count'); const tmpOcc = [...occ]; const legalSim = (() => { occ[idx(4, 4)] = 1; const a = canKingMoveTo(5, 5); occ.splice(0, occ.length, ...tmpOcc); return typeof a === 'boolean'; })(); console.assert(legalSim, 'canKingMoveTo works'); } catch (e) { console.warn('self-tests failed', e); } })();
+        })();
+    </script>
+</body>
+
+</html>
