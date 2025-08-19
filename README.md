@@ -1,6 +1,6 @@
 # Save the King ♔  
 
-*A survival twist on chess — protect your king and outlast every enemy before time runs out.*  
+*A survival twist on chess. Protect your king and outlast every enemy before time runs out.*  
 
 **Save the King** is a chess-inspired survival game where you must survive waves of knights, bishops, rooks, and queens. Capture them all before the timer runs out, or be cornered with no escape.  
 
