@@ -10,9 +10,15 @@
 - **Win:** Capture all enemies within 30 seconds.  
 - **Lose:** Run out of time, or run out of legal king moves.  
 
+## Features  
+- Keyboard controls: **WASD/Arrows** (hold two keys for diagonals)  
+- Mouse support: **Click adjacent highlighted squares**  
+- Touch support: **Tap adjacent squares on mobile**  
+- Multiple visual themes  
+
 ## Tech stack  
 Built with **HTML, CSS, and vanilla JavaScript**.  
 
 ---
 
-**License:** All Rights Reserved © 2025 Md. Muntaha Islam
+**License:** All Rights Reserved © 2025 Md. Muntaha Islam  
