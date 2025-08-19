@@ -144,7 +144,10 @@
         .board-outer {
             position: relative;
             width: min(96vmin, 900px);
-            aspect-ratio: 1
+            aspect-ratio: 1;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none
         }
 
         .board {
@@ -201,7 +204,8 @@
 
         .pieces {
             position: absolute;
-            inset: 0
+            inset: 0;
+            pointer-events: none
         }
 
         .piece {
@@ -358,8 +362,8 @@
                 <div class="row" style="margin-top:10px">
                     <button id="startBtn" class="btn">Start</button>
                 </div>
-                <p class="small">Controls: WASD/Arrows (hold two for diagonals). Space/P pause. Enter/R restart. Touch:
-                    tap an adjacent highlight.</p>
+                <p class="small">Controls: WASD/Arrows (hold two for diagonals). Space/P pause. Enter/R restart. Click
+                    or tap an adjacent highlighted square to move.</p>
                 <h2>Best</h2>
                 <p class="small">Best Level: <span id="bestLevel">1</span> • Best Captures: <span
                         id="bestScore">0</span></p>
@@ -413,10 +417,7 @@
                 { name: "Forest", light: "#E8F3EA", dark: "#2F5D3A", uiBg: "#0C1110", text: "#E6F2EC", accent: "#16A34A" },
                 { name: "Indigo", light: "#E8EAF6", dark: "#3949AB", uiBg: "#0D0F1A", text: "#EAEAF3", accent: "#6366F1" }
             ];
-            const BOARD = 8;
-            const LEVEL_TIME = 30.0;
-
-            // Piece image sources (Cburnett set)
+            const BOARD = 8; const LEVEL_TIME = 30.0;
             const PIECE_SRC = {
                 WK: "https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg",
                 WQ: "https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg",
@@ -435,6 +436,7 @@
             // DOM
             const app = document.getElementById('app');
             const board = document.getElementById('board');
+            const boardOuter = document.getElementById('boardOuter');
             const piecesLayer = document.getElementById('pieces');
             const hudMode = document.getElementById('modeText');
             const hudLevel = document.getElementById('levelText');
@@ -479,7 +481,7 @@
             let capturedThisLevel = 0;
             const occ = new Array(BOARD * BOARD).fill(0);
 
-            // Blitz loop (continuous interval)
+            // Blitz loop
             let blitzInterval = null;
             let blitzTelegraphTO = null;
 
@@ -509,7 +511,13 @@
             const teleEls = squares.map(() => { const d = document.createElement('div'); return d }); teleEls.forEach((el, i) => squares[i].appendChild(el));
 
             // Events
-            board.addEventListener('click', onBoardClick);
+            // Important: use boardOuter and pointer events so taps on the overlaying pieces layer still register.
+            boardOuter.addEventListener('pointerdown', onBoardPointer, { passive: false });
+            // Fallback click (desktop)
+            boardOuter.addEventListener('click', onBoardClick);
+            const preventGesture = (e) => { if (state === STATES.PLAYING) e.preventDefault(); };
+            boardOuter.addEventListener('touchstart', preventGesture, { passive: false });
+
             pauseBtn.addEventListener('click', togglePause);
             restartBtn.addEventListener('click', fullRestartFromStart);
             startBtn.addEventListener('click', () => startLevel());
@@ -555,10 +563,7 @@
                 if (state !== STATES.PLAYING) return;
 
                 if (isMoveKey(code)) {
-                    if (e.repeat) return;
-                    pressed.add(code);
-                    scheduleCombinedMove();
-                    return;
+                    if (e.repeat) return; pressed.add(code); scheduleCombinedMove(); return;
                 }
             }
             function onKeyUp(e) { if (!isMoveKey(e.code)) return; pressed.delete(e.code); if (pressed.size === 0) { moveLatched = false; } }
@@ -601,14 +606,13 @@
             function stopAllLoops() { if (rafId) { cancelAnimationFrame(rafId); rafId = null } if (blitzInterval) { clearInterval(blitzInterval); blitzInterval = null } if (blitzTelegraphTO) { clearTimeout(blitzTelegraphTO); blitzTelegraphTO = null } }
             function rebuildOcc() { occ.fill(0); occ[idx(king.x, king.y)] = 1; for (const e of enemies) { occ[idx(e.x, e.y)] = 1; } }
 
-            // ========= LEGALITY (single source of truth) =========
+            // ========= LEGALITY =========
             function canKingMoveTo(nx, ny) {
                 if (!inb(nx, ny)) return false;
                 const oldIdx = idx(king.x, king.y); const targetIdx = idx(nx, ny);
                 const occupied = occ[targetIdx] === 1;
                 const savedOld = occ[oldIdx]; const savedNew = occ[targetIdx];
-                // Simulate the board after the move so x-ray lines are evaluated correctly
-                occ[oldIdx] = 0; occ[targetIdx] = 1;
+                occ[oldIdx] = 0; occ[targetIdx] = 1; // simulate board after move
                 let ok = false;
                 if (occupied) {
                     const enemyThere = enemies.find(en => en.x === nx && en.y === ny);
@@ -630,11 +634,10 @@
                 stopAllLoops(); hideAllOverlays(); state = STATES.PLAYING; timer = LEVEL_TIME; capturedThisLevel = 0; clearBoardEffects(); clearPieces(); king.x = 4; king.y = 4; setPiecePos(king.el, king.x, king.y);
                 const count = Math.min(level, 10); const pool = []; if (level === 1) { pool.push('N') } else if (level === 2) { pool.push('N', 'N') } else { for (let i = 0; i < count; i++) { const r = Math.random(); if (r < 0.35) pool.push('N'); else if (r < 0.60) pool.push('B'); else if (r < 0.85) pool.push('R'); else pool.push('Q'); } } while (pool.length < count) pool.push('N'); safeSpawnAll(pool);
                 if (mode === MODES.BLITZ) { const loop = () => { rafId = requestAnimationFrame(loop) }; loop(); scheduleBlitz(); }
-                rebuildOcc(); updateKingHighlights(); updateHud();
-                if (loseIfNoMoves()) return;
+                rebuildOcc(); updateKingHighlights(); updateHud(); if (loseIfNoMoves()) return;
             }
 
-            // Blitz loop
+            // Blitz
             function scheduleBlitz() { blitzInterval = setInterval(() => { if (state !== STATES.PLAYING || mode !== MODES.BLITZ) return; telegraphMoves(); blitzTelegraphTO = setTimeout(() => { clearTelegraph(); enemiesTurnBlitz(); }, 100); }, 400); }
             function enemiesTurnBlitz() { if (state !== STATES.PLAYING) return; if (enemiesTurn()) return; if (loseIfNoMoves()) return; tickTimer(0.4); updateHud(); if (enemies.length === 0) { levelCleared(); } }
 
@@ -681,8 +684,24 @@
             function enemyAttacks(e, x, y) { if (e.type === 'N') { for (const [kx, ky] of NDIRS) { if (e.x + kx === x && e.y + ky === y) return true; } return false; } const ddx = x - e.x, ddy = y - e.y; if (e.type === 'B') { if (Math.abs(ddx) !== Math.abs(ddy)) return false; return clearLine(e.x, e.y, Math.sign(ddx), Math.sign(ddy), x, y); } if (e.type === 'R') { if (ddx !== 0 && ddy !== 0) return false; return clearLine(e.x, e.y, Math.sign(ddx), Math.sign(ddy), x, y); } if (e.type === 'Q') { if (ddx === 0 || ddy === 0 || Math.abs(ddx) === Math.abs(ddy)) return clearLine(e.x, e.y, Math.sign(ddx), Math.sign(ddy), x, y); return false; } return false; }
             function clearLine(sx, sy, stepx, stepy, tx, ty) { let x = sx + stepx, y = sy + stepy; while (x !== tx || y !== ty) { if (occ[idx(x, y)]) return false; x += stepx; y += stepy; } return true; }
 
-            // Touch
-            function onBoardClick(ev) { if (state !== STATES.PLAYING) return; const t = ev.target.closest('.sq'); if (!t) return; const x = +t.dataset.x, y = +t.dataset.y; if (Math.max(Math.abs(x - king.x), Math.abs(y - king.y)) !== 1) return; if (!canKingMoveTo(x, y)) return; tryMoveKing(Math.sign(x - king.x), Math.sign(y - king.y)); }
+            // Pointer & Touch helpers
+            function eventToSquare(ev) {
+                const isTouch = ev.pointerType === 'touch' || (ev.touches && ev.touches.length);
+                const clientX = isTouch ? (ev.touches ? ev.touches[0].clientX : ev.clientX) : ev.clientX;
+                const clientY = isTouch ? (ev.touches ? ev.touches[0].clientY : ev.clientY) : ev.clientY;
+                const rect = board.getBoundingClientRect();
+                const rx = (clientX - rect.left) / rect.width;
+                const ry = (clientY - rect.top) / rect.height;
+                if (rx < 0 || rx > 1 || ry < 0 || ry > 1) return { x: null, y: null };
+                const x = Math.max(0, Math.min(7, Math.floor(rx * 8)));
+                const y = Math.max(0, Math.min(7, Math.floor(ry * 8)));
+                return { x, y };
+            }
+            function onBoardPointer(ev) { if (state !== STATES.PLAYING) return; ev.preventDefault(); const { x, y } = eventToSquare(ev); if (x == null) return; if (Math.max(Math.abs(x - king.x), Math.abs(y - king.y)) !== 1) return; if (!canKingMoveTo(x, y)) return; tryMoveKing(Math.sign(x - king.x), Math.sign(y - king.y)); }
+            function onBoardClick(ev) {
+                if (state !== STATES.PLAYING) return; const t = ev.target.closest('.sq'); if (t) { const x = +t.dataset.x, y = +t.dataset.y; if (Math.max(Math.abs(x - king.x), Math.abs(y - king.y)) !== 1) return; if (!canKingMoveTo(x, y)) return; tryMoveKing(Math.sign(x - king.x), Math.sign(y - king.y)); return; } // Fallback if click lands on pieces layer
+                const p = eventToSquare(ev); if (p.x == null) return; if (Math.max(Math.abs(p.x - king.x), Math.abs(p.y - king.y)) !== 1) return; if (!canKingMoveTo(p.x, p.y)) return; tryMoveKing(Math.sign(p.x - king.x), Math.sign(p.y - king.y));
+            }
 
             // Moves
             function tryMoveKing(dx, dy) {
@@ -702,7 +721,7 @@
             }
             function removeEnemy(enemy) { const i = enemies.indexOf(enemy); if (i >= 0) { enemies.splice(i, 1); } occ[idx(enemy.x, enemy.y)] = 0; if (enemy.el && enemy.el.parentNode) enemy.el.parentNode.removeChild(enemy.el); }
 
-            // Timer and highlights
+            // Timer & highlights
             function tickTimer(dt) { timer -= dt; if (timer <= 0) { timer = 0; if (enemies.length > 0) { gameOver('Out of time'); } else { levelCleared(); } } }
             function updateKingHighlights() { hiEls.forEach(el => el.className = ''); if (state !== STATES.PLAYING) return; for (const [dx, dy] of KDIRS) { const nx = king.x + dx, ny = king.y + dy; if (!inb(nx, ny)) continue; if (canKingMoveTo(nx, ny)) { hiEls[idx(nx, ny)].className = 'highlight safe'; } } }
 
@@ -716,7 +735,7 @@
             function enterStart() { state = STATES.START; showOverlay(ovStart); updateHud(); updateKingHighlights(); }
             enterStart();
 
-            // Sanity tests (console)
+            // Sanity tests
             ; (function tests() { try { const dummy = document.createElement('div'); setPiecePos(dummy, 2, 3); console.assert(/200%/.test(dummy.style.transform) && /300%/.test(dummy.style.transform), 'grid translate'); console.assert(Object.keys(PIECE_SRC).length === 12, 'piece src count'); const tmpOcc = [...occ]; const legalSim = (() => { occ[idx(4, 4)] = 1; const a = canKingMoveTo(5, 5); occ.splice(0, occ.length, ...tmpOcc); return typeof a === 'boolean'; })(); console.assert(legalSim, 'canKingMoveTo works'); } catch (e) { console.warn('self-tests failed', e); } })();
         })();
     </script>
